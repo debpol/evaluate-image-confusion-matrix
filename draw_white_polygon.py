@@ -45,7 +45,7 @@ if (os.path.exists(args.path)):
     for record in jsonrecords:
            
         # read image as RGB and add alpha (transparency)
-        im = Image.open(args.path + "/" + record['filename']).convert("RGBA")
+        im = Image.open(args.path + "/" + record['filename'])
   
         for anotattion in record['annotations']:
             polygon=[]
@@ -65,5 +65,5 @@ if (os.path.exists(args.path)):
             ImageDraw.Draw(im).polygon(polygon, outline="white", fill="white")
     
         # new name file
-        fn_GT="{}{}{}{}{}".format(result_dir,"/",os.path.splitext(record['filename'])[0],"_GT",os.path.splitext(record['filename'])[1])
+        fn_GT="{}{}{}{}{}".format(result_dir,"/",os.path.splitext(record['filename'])[0],"_GT",".png")
         im.save(fn_GT)

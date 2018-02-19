@@ -5,10 +5,6 @@ Created on Wed Feb 14 16:34:58 2018
 
 @author: deby
 """
-#https://github.com/keras-team/keras/issues/5862
-
-#https://stackoverflow.com/questions/40491745/split-images-of-different-classes-into-training-and-testing-sets-in-python?rq=1
-	
 import os, random, shutil, math, glob, argparse
 
 parser = argparse.ArgumentParser(description='Slipt dataset into teat and training sets')

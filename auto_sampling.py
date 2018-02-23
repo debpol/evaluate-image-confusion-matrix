@@ -62,7 +62,8 @@ def tag_sample_points(items, polygon, polygon_tag, backgroud_tag,radius):
     return tagged_sample_points
 
 
-parser = argparse.ArgumentParser(description='generates sampling points with poisson disc over an image.It process all images under "/ imgs" folder in current work directory. The points generated are tagged according to these are outside or inside of polygon indicated in the json file annotations')
+parparser = argparse.ArgumentParser(description='generates sampling points with poisson disc for all images under path directory folder indicated. The points generated are tagged according to these are outside or inside of polygon indicated in the json file annotations')
+parser.add_argument("-p", dest="path", type=str, required=True, help="directory path where are .jpg file images to be sampling")
 parser.add_argument("-jf", dest="jsonfile", type=str,required=True, help=".json file with polygon ROI annotations over the images")
 parser.add_argument("-r", dest="r", type=int,required=False, help="r is the minimum allowable distance between any two samples. By default it is 40")
 
@@ -74,7 +75,7 @@ jsonrecords = json.loads(open(args.jsonfile).read())
 for index in range(len(jsonrecords)):
     polygon=[]
     record=jsonrecords[index]
-    fn = 'imgs/'+ record['filename']
+    fn = args.path + "/" + record['filename']
     print 'Processing {}'.format(fn)
 
     if record['annotations']:

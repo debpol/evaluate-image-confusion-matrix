@@ -18,6 +18,7 @@ from math import sqrt, pi
 from poisson_disc import Grid
 import random
 import pandas as pd
+import os
 
 
 polygon_tag="sample-point-dolphin"
@@ -52,17 +53,28 @@ def print_list(lst):
     for item in lst:
         print str(item) 
 
-def tag_sample_points(items, polygon, polygon_tag, backgroud_tag,radius):
+def tag_sample_points(items, polygons_list, polygon_tag, backgroud_tag,radius):
+    
     tagged_sample_points=[]
+    
     for item in items:
-        if inside_polygon(item[0],item[1],polygon):
-             tagged_sample_points.append((item,polygon_tag, radius))
-        else:
+        
+        inside_polygons = False
+       
+        for polygon in polygons_list:
+            print polygon
+            if not inside_polygons:
+                inside_polygons = inside_polygon(item[0],item[1],polygon)
+                if inside_polygons:
+                    tagged_sample_points.append((item,polygon_tag, radius))
+        
+        if not inside_polygons:    
             tagged_sample_points.append((item,backgroud_tag, radius))
+   
     return tagged_sample_points
 
 
-parparser = argparse.ArgumentParser(description='generates sampling points with poisson disc for all images under path directory folder indicated. The points generated are tagged according to these are outside or inside of polygon indicated in the json file annotations')
+parser = argparse.ArgumentParser(description='generates sampling points with poisson disc for all images under path directory folder indicated. The points generated are tagged according to these are outside or inside of polygon indicated in the json file annotations')
 parser.add_argument("-p", dest="path", type=str, required=True, help="directory path where are .jpg file images to be sampling")
 parser.add_argument("-jf", dest="jsonfile", type=str,required=True, help=".json file with polygon ROI annotations over the images")
 parser.add_argument("-r", dest="r", type=int,required=False, help="r is the minimum allowable distance between any two samples. By default it is 40")
@@ -71,17 +83,20 @@ args = parser.parse_args()
 
 jsonrecords = json.loads(open(args.jsonfile).read())
 
+dir_destination=args.path + "/auto_sampling_images"
+os.mkdir(dir_destination)
 
 for index in range(len(jsonrecords)):
-    polygon=[]
+    
     record=jsonrecords[index]
     fn = args.path + "/" + record['filename']
     print 'Processing {}'.format(fn)
-
+    list_polygons=[]
     if record['annotations']:
         record_index=index
         for anotattion in record['annotations']:
             if(anotattion['class'] == "polygon"):
+                polygon=[]
                 xpoints=anotattion["xn"]
                 ypoints=anotattion["yn"]
                 
@@ -90,7 +105,7 @@ for index in range(len(jsonrecords)):
                 
                 for i in range (len(splited_xpoints)):
                     polygon.append(((int (float(str(splited_xpoints[i])))),(int (float(str(splited_ypoints[i]))))))
-               
+                list_polygons.append(polygon)
                     
 # read image as RGB and add alpha (transparency)
         im = Image.open(fn).convert("RGBA")
@@ -118,10 +133,9 @@ for index in range(len(jsonrecords)):
 
 #generate points sampling
         sample_points = grid.poisson_int(seed)
-
-#tagged each point and save it as dataframe: ["sample_point", "tag", "radius_size"]
-        df_tagged_sample_points = pd.DataFrame(tag_sample_points(sample_points, polygon, polygon_tag, backgroud_tag, radius))
-
+      
+        df_tagged_sample_points=pd.DataFrame(tag_sample_points(sample_points, list_polygons, polygon_tag, backgroud_tag, radius))
+            
 #change the columns names of dataframe
         df_tagged_sample_points.columns=["sample_point", "tag", "radius_size"]
 
@@ -158,22 +172,17 @@ for index in range(len(jsonrecords)):
         jsonrecords[record_index]['annotations']=new_annotation
 
 #save a new image with sample points
-        fn_im_samples_points="{}_{}_{}{}".format(os.path.splitext(fn)[0],"samples-point",radius,os.path.splitext(fn)[1])
+        fn_im_samples_points="{}_{}_{}{}".format(os.path.splitext(record['filename'])[0],"samples-point",radius,os.path.splitext(fn)[1])
 
-        im.save(fn_im_samples_points)
-
-#save a new json file with annotations sample points
-        fn_json_samples_points="{}_{}_{}{}".format(os.path.splitext(args.jsonfile)[0],"samples-point",radius,os.path.splitext(args.jsonfile)[1])
-
-        with open(fn_json_samples_points, 'w') as f:
-            json.dump(jsonrecords, f,indent=4)
+        im.save(dir_destination +"/"+ fn_im_samples_points)
 
 #cut de polygon and save it as .png image
 # create maskIm (x,y) in black
         maskIm = Image.new('L', (np_im.shape[1], np_im.shape[0]), 0)
 
 #maskIm keeps black backgroud and withe polygon figure
-        ImageDraw.Draw(maskIm).polygon(polygon, outline=1, fill=1)
+        for polygon in list_polygons:
+            ImageDraw.Draw(maskIm).polygon(polygon, outline=1, fill=1)
 
         np_mask = numpy.array(maskIm)
 
@@ -188,5 +197,11 @@ for index in range(len(jsonrecords)):
 
 # back to Image from numpy
         newIm = Image.fromarray(newImArray, "RGBA")
-        fn_polygon_im="{}{}".format(os.path.splitext(fn)[0],"_polygon.png")
-        newIm.save(fn_polygon_im)
+        fn_polygon_im="{}{}".format(os.path.splitext(record['filename'])[0],"_polygon.png")
+        newIm.save(dir_destination +"/"+ fn_polygon_im)
+
+        #save a new json file with annotations sample points
+        fn_json_samples_points="{}_{}_{}{}".format(os.path.splitext(args.jsonfile)[0],"samples-point",radius,os.path.splitext(args.jsonfile)[1])
+        
+        with open(fn_json_samples_points, 'w') as f:
+            json.dump(jsonrecords, f,indent=4)

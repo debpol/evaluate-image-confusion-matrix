@@ -53,24 +53,46 @@ def print_list(lst):
     for item in lst:
         print str(item) 
 
-def tag_sample_points(items, polygons_list, polygon_tag, backgroud_tag,radius):
+def tag_sample_points(items, polygons_list, polygon_tag, background_tag,radius, N):
     
     tagged_sample_points=[]
-    
+    background_counter = 0
+    polygon_counter = 0
+
+    # use the minimum as the max number of samples per class
+    N = min(len(items), N)
+
+    # to get more diversity of each class
+    # shuffle occurs in-place
+    random.shuffle(items)
+
     for item in items:
         
         inside_polygons = False
        
         for polygon in polygons_list:
-            print polygon
+            #print polygon
             if not inside_polygons:
                 inside_polygons = inside_polygon(item[0],item[1],polygon)
-                if inside_polygons:
+                if inside_polygons and polygon_counter < N:
                     tagged_sample_points.append((item,polygon_tag, radius))
+                    polygon_counter += 1
         
-        if not inside_polygons:    
-            tagged_sample_points.append((item,backgroud_tag, radius))
-   
+        if not inside_polygons and background_counter < N:    
+            tagged_sample_points.append((item,background_tag, radius))
+            background_counter += 1
+
+        if background_counter >= N and polygon_counter >= N:
+            break
+
+    if polygon_counter < N:
+        print "Warning: could not find enough points for polygon"
+    if background_counter < N:
+        print "Warning: could not find enough points for background"
+
+
+    print "Polygon, Background:", polygon_counter, background_counter
+
     return tagged_sample_points
 
 
@@ -78,6 +100,7 @@ parser = argparse.ArgumentParser(description='generates sampling points with poi
 parser.add_argument("-p", dest="path", type=str, required=True, help="directory path where are .jpg file images to be sampling")
 parser.add_argument("-jf", dest="jsonfile", type=str,required=True, help=".json file with polygon ROI annotations over the images")
 parser.add_argument("-r", dest="r", type=int,required=False, help="r is the minimum allowable distance between any two samples. By default it is 40")
+parser.add_argument("-N", dest="N", type=int,required=True, help="max of points to sample for each class")
 
 args = parser.parse_args()
 
@@ -134,7 +157,7 @@ for index in range(len(jsonrecords)):
 #generate points sampling
         sample_points = grid.poisson_int(seed)
       
-        df_tagged_sample_points=pd.DataFrame(tag_sample_points(sample_points, list_polygons, polygon_tag, backgroud_tag, radius))
+        df_tagged_sample_points=pd.DataFrame(tag_sample_points(sample_points, list_polygons, polygon_tag, backgroud_tag, radius, args.N))
             
 #change the columns names of dataframe
         df_tagged_sample_points.columns=["sample_point", "tag", "radius_size"]
